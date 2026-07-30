@@ -1,0 +1,6 @@
+node_modules/
+.zed
+*.log
+.DS_Store
+dist
+local
