@@ -8,7 +8,7 @@ export const Config = {
   // Optional explicit hook-variant override, applied within the detected
   // platform. "k8s" is Linux-only and ignored on Windows.
   //   STEP_HOOK_MODE = "vm" | "k8s" | "custom-vm"
-  hookMode: process.env.STEP_HOOK_MODE || "",
+  hookMode: process.env.STEP_HOOK_MODE || "vm",
 
   api: {
     // StepSecurity endpoints. The shell hooks baked these in as {{API_URL}};

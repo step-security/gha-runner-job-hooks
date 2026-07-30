@@ -5,7 +5,6 @@ import { emitLinuxMarker } from "../../lib/markers";
 import {
   fetchWorkflowPolicyCheck,
   fetchWorkflowPolicyStatus,
-  WorkflowPolicyStatus,
 } from "../../lib/policy";
 
 export async function runK8sPreJobHook(): Promise<void> {
@@ -84,7 +83,10 @@ async function waitForPolicy(
       return;
     }
 
-    const status = await checkPolicyStatus(owner, repo, correlationId);
+    const status = await fetchWorkflowPolicyStatus(
+      { owner, repo, correlationId },
+      { timeoutMs: 5000, maxAttempts: 4, retryDelayMs: 1000 }, // curl --connect-timeout 5 --retry 3 --retry-delay 1
+    );
 
     switch (status) {
       case "APPLIED":
@@ -104,18 +106,6 @@ async function waitForPolicy(
         return;
     }
   }
-}
-
-function checkPolicyStatus(
-  owner: string,
-  repo: string,
-  correlationId: string,
-): Promise<WorkflowPolicyStatus> {
-  return fetchWorkflowPolicyStatus(
-    { owner, repo, correlationId },
-    // curl --connect-timeout 5 --retry 3 --retry-delay 1
-    { timeoutMs: 5000, maxAttempts: 4, retryDelayMs: 1000 },
-  );
 }
 
 function buildPolicySignal(

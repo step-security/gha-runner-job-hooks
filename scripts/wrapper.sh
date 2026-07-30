@@ -28,7 +28,7 @@ export STEP_AGENT_ROOT="/home/agent"
 
 # --- Hook source (GitHub release) -------------------------------------------
 # TODO: replace with the real release download base URL.
-HOOK_RELEASE_BASE="https://github.com/step-security/playground/releases/download/v0.0.7"
+HOOK_RELEASE_BASE="https://github.com/step-security/gha-runner-job-hooks/releases/download/v1.0.0"
 HOOKS_DIR="/tmp/gha-hooks"
 PRE_JS="${HOOKS_DIR}/pre.js"
 POST_JS="${HOOKS_DIR}/post.js"
