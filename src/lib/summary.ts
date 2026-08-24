@@ -61,6 +61,19 @@ export async function fetchAndAppendSummary(
   }
 }
 
+export function appendSummaryMarkdown(markdown: string): void {
+  if (!markdown) {
+    return;
+  }
+
+  const ctx = getGithubRunContext();
+  if (!ctx.stepSummaryPath) {
+    return;
+  }
+
+  fs.appendFileSync(ctx.stepSummaryPath, markdown, "utf8");
+}
+
 // Creation (birth) time of the event file in epoch seconds — the equivalent of
 // `stat -c %W "$GITHUB_EVENT_PATH"` used by the shell post-hooks as start_time.
 function getStartTime(eventPath: string): number {

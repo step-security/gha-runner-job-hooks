@@ -199,3 +199,16 @@ export function handleFatalError(error: unknown): never {
 
   process.exit(0);
 }
+
+export function terminateRunnerWorker(): void {
+  if (process.platform === "win32") {
+    runCommand(
+      "taskkill.exe",
+      ["/F", "/IM", "Runner.Worker.exe", "/T"],
+      { silent: true },
+    );
+    return;
+  }
+
+  runCommand("pkill", ["-f", "Runner.Worker"], { silent: true });
+}

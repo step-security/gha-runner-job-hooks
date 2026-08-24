@@ -16,7 +16,10 @@ import {
   updateLinuxAgentJsonForJob,
 } from "../lib/agent-json";
 import { emitLinuxMarker } from "../lib/markers";
-import { fetchWorkflowPolicyCheck } from "../lib/policy";
+import {
+  fetchWorkflowPolicyCheck,
+  handleBlockedRunPolicyEvaluation,
+} from "../lib/policy";
 import { AGENT_LOG_GROUP, printFileGroup } from "../lib/files";
 import { fetchAndAppendSummary, SummaryOutcome } from "../lib/summary";
 import {
@@ -34,13 +37,9 @@ export async function runPersistentPreHook(): Promise<void> {
   const ctx = getGithubRunContext();
   const correlationId = randomUUID();
   let hasPrejobPolicy = false;
-
-  logInfo(
-    `Generated job correlationId for self-hosted agent: ${correlationId}`,
-  );
   logInfo("PRE-JOB HOOK: Checking for policy from policy store...");
 
-  const { hasPolicy } = await fetchWorkflowPolicyCheck(
+  const { hasPolicy, runPolicyEvaluation } = await fetchWorkflowPolicyCheck(
     {
       owner: ctx.owner,
       repo: ctx.repo,
@@ -50,6 +49,11 @@ export async function runPersistentPreHook(): Promise<void> {
     },
     // curl --connect-timeout 5 --retry 3 --retry-delay 1
     { timeoutMs: 5000, maxAttempts: 4, retryDelayMs: 1000 },
+  );
+
+  handleBlockedRunPolicyEvaluation(runPolicyEvaluation);
+  logInfo(
+    `Generated job correlationId for self-hosted agent: ${correlationId}`,
   );
 
   if (hasPolicy) {
@@ -86,10 +90,6 @@ export async function runEphemeralPreHook(): Promise<void> {
   const ctx = getGithubRunContext();
   const correlationId = randomUUID();
 
-  logInfo(
-    `Generated job correlationId for self-hosted agent: ${correlationId}`,
-  );
-
   const echoCommand = requireEchoCommand();
   logInfo(`echo command: ${echoCommand}`);
   emitLinuxMarker(echoCommand, `step_policy_correlationid_${correlationId}`);
@@ -97,7 +97,7 @@ export async function runEphemeralPreHook(): Promise<void> {
 
   logInfo("PRE-JOB HOOK: Checking for policy from policy store...");
 
-  const { hasPolicy } = await fetchWorkflowPolicyCheck(
+  const { hasPolicy, runPolicyEvaluation } = await fetchWorkflowPolicyCheck(
     {
       owner: ctx.owner,
       repo: ctx.repo,
@@ -107,6 +107,11 @@ export async function runEphemeralPreHook(): Promise<void> {
     },
     // curl --connect-timeout 5 --retry 3 --retry-delay 1
     { timeoutMs: 5000, maxAttempts: 4, retryDelayMs: 1000 },
+  );
+
+  handleBlockedRunPolicyEvaluation(runPolicyEvaluation);
+  logInfo(
+    `Generated job correlationId for self-hosted agent: ${correlationId}`,
   );
 
   if (hasPolicy) {

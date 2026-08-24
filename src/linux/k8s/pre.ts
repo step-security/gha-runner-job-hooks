@@ -5,6 +5,7 @@ import { emitLinuxMarker } from "../../lib/markers";
 import {
   fetchWorkflowPolicyCheck,
   fetchWorkflowPolicyStatus,
+  handleBlockedRunPolicyEvaluation,
 } from "../../lib/policy";
 
 export async function runK8sPreJobHook(): Promise<void> {
@@ -13,7 +14,8 @@ export async function runK8sPreJobHook(): Promise<void> {
 
   logInfo("PRE-JOB HOOK: Checking for policy from Policy Store...");
 
-  const { hasPolicy, shouldSleep } = await fetchWorkflowPolicyCheck(
+  const { hasPolicy, shouldSleep, runPolicyEvaluation } =
+    await fetchWorkflowPolicyCheck(
     {
       owner: ctx.owner,
       repo: ctx.repo,
@@ -24,6 +26,8 @@ export async function runK8sPreJobHook(): Promise<void> {
     // curl --connect-timeout 5 --retry 3 --retry-delay 1
     { timeoutMs: 5000, maxAttempts: 4, retryDelayMs: 1000 },
   );
+
+  handleBlockedRunPolicyEvaluation(runPolicyEvaluation);
 
   const echoCommand = requireEchoCommand();
   logInfo(`echo command: ${echoCommand}`);

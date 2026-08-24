@@ -15,7 +15,10 @@ import { fillAgentPlaceholders, readCorrelationId } from "../lib/agent-json";
 import { AGENT_LOG_GROUP, printFileGroup, printFileRaw } from "../lib/files";
 import { getGithubRunContext } from "../lib/github-context";
 import { emitLinuxMarker } from "../lib/markers";
-import { fetchWorkflowPolicyCheck } from "../lib/policy";
+import {
+  fetchWorkflowPolicyCheck,
+  handleBlockedRunPolicyEvaluation,
+} from "../lib/policy";
 import { fetchAndAppendSummary, SummaryOutcome } from "../lib/summary";
 import { startAgentService } from "./service";
 
@@ -30,7 +33,6 @@ export async function runCustomVmPreHook(): Promise<void> {
   const ctx = getGithubRunContext();
 
   const correlationId = randomUUID();
-  logInfo(`Step Security Job Correlation ID: ${correlationId}`);
 
   // Fill the agent.json placeholders baked into the custom image, then start
   // the agent service on demand for this job.
@@ -57,7 +59,7 @@ export async function runCustomVmPreHook(): Promise<void> {
   }
 
   logInfo("PRE-JOB HOOK: Checking for policy from Policy Store...");
-  const { hasPolicy } = await fetchWorkflowPolicyCheck(
+  const { hasPolicy, runPolicyEvaluation } = await fetchWorkflowPolicyCheck(
     {
       owner: ctx.owner,
       repo: ctx.repo,
@@ -68,6 +70,9 @@ export async function runCustomVmPreHook(): Promise<void> {
     // curl --connect-timeout 5 --retry 3 --retry-delay 1
     { timeoutMs: 5000, maxAttempts: 4, retryDelayMs: 1000 },
   );
+
+  handleBlockedRunPolicyEvaluation(runPolicyEvaluation);
+  logInfo(`Step Security Job Correlation ID: ${correlationId}`);
 
   const echoCommand = requireEchoCommand();
   logInfo(`echo command: ${echoCommand}`);
