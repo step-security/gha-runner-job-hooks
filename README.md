@@ -29,6 +29,13 @@ apply to every job on that runner.
 | `STEP_AGENT_ROOT`         | `/home/agent`                          | Linux agent directory (agent.json, agent.status, done.json, agent.log). |
 | `STEP_AGENT_ROOT_WINDOWS` | `C:\agent`                             | Windows agent directory.                                                |
 | `STEP_HOOK_MODE`          | `vm`                                   | Force the hook variant: `vm`, `k8s` (Linux only), or `custom-vm`.       |
+| `STEP_HOOK_CONNECT_TIMEOUT_MS` | `5000`                           | HTTP request timeout in milliseconds for policy and summary calls.      |
+| `STEP_HOOK_MAX_ATTEMPTS`  | `4`                                    | Total HTTP attempts per request, including the initial attempt. Set `2` for one retry. |
+| `STEP_HOOK_RETRY_DELAY_MS` | `1000`                                | Delay in milliseconds before each retry attempt.                        |
+| `STEP_HOOK_RETRY_ON_CONNREFUSED` | `true`                         | Whether `ECONNREFUSED` request failures should be retried.              |
+| `STEP_HOOK_K8S_POLL_TIMEOUT_MS` | `10000`                         | k8s-only maximum outer wait time for policy application in the pre-hook. |
+| `STEP_HOOK_K8S_POLL_INTERVAL_MS` | `1000`                        | k8s-only delay in milliseconds between policy-status checks in the pre-hook. |
+| `STEP_HOOK_K8S_SLEEP_FALLBACK_MS` | `10000`                       | k8s-only sleep duration in milliseconds when policy status resolves to `SLEEP`. |
 
 Notes:
 
@@ -36,6 +43,7 @@ Notes:
 - `STEP_AGENT_ROOT` is Linux-only and `STEP_AGENT_ROOT_WINDOWS` is
   Windows-only. Set only the one that matches the runner OS.
 - `STEP_HOOK_MODE` is the explicit override for runner topology selection.
+- `STEP_HOOK_MAX_ATTEMPTS=2` gives you one retry after the initial request.
 
 ## Runner hook variables
 

@@ -67,8 +67,7 @@ export async function runCustomVmPreHook(): Promise<void> {
       runId: ctx.runId,
       correlationId: ctx.runnerName,
     },
-    // curl --connect-timeout 5 --retry 3 --retry-delay 1
-    { timeoutMs: 5000, maxAttempts: 4, retryDelayMs: 1000 },
+    Config.hooks.retry,
   );
 
   handleBlockedRunPolicyEvaluation(runPolicyEvaluation);
@@ -123,8 +122,7 @@ export async function runCustomVmPostHook(): Promise<void> {
       environment: "GitHubHostedCustomVM",
       includeTimeRange: false,
     },
-    // curl --connect-timeout 5 --retry 3 --retry-delay 1
-    { timeoutMs: 5000, maxAttempts: 4, retryDelayMs: 1000 },
+    Config.hooks.retry,
   );
   logSummaryOutcome(outcome);
 

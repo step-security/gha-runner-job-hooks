@@ -47,8 +47,7 @@ export async function runPersistentPreHook(): Promise<void> {
       runId: ctx.runId,
       correlationId,
     },
-    // curl --connect-timeout 5 --retry 3 --retry-delay 1
-    { timeoutMs: 5000, maxAttempts: 4, retryDelayMs: 1000 },
+    Config.hooks.retry,
   );
 
   handleBlockedRunPolicyEvaluation(runPolicyEvaluation);
@@ -105,8 +104,7 @@ export async function runEphemeralPreHook(): Promise<void> {
       runId: ctx.runId,
       correlationId,
     },
-    // curl --connect-timeout 5 --retry 3 --retry-delay 1
-    { timeoutMs: 5000, maxAttempts: 4, retryDelayMs: 1000 },
+    Config.hooks.retry,
   );
 
   handleBlockedRunPolicyEvaluation(runPolicyEvaluation);
@@ -166,8 +164,7 @@ export async function runPersistentPostHook(): Promise<void> {
       environment: "SelfHostedVM",
       includeTimeRange: true,
     },
-    // curl --connect-timeout 5 --retry 3 --retry-delay 1
-    { timeoutMs: 5000, maxAttempts: 4, retryDelayMs: 1000 },
+    Config.hooks.retry,
   );
   logLinuxSummaryOutcome(outcome);
 
@@ -209,8 +206,7 @@ export async function runEphemeralPostHook(): Promise<void> {
       environment: "SelfHostedVM",
       includeTimeRange: true,
     },
-    // curl --connect-timeout 5 --retry 3 --retry-delay 1
-    { timeoutMs: 5000, maxAttempts: 4, retryDelayMs: 1000 },
+    Config.hooks.retry,
   );
   logLinuxSummaryOutcome(outcome);
 

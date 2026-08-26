@@ -3,6 +3,17 @@ const windowsRoot = process.env.STEP_AGENT_ROOT_WINDOWS || "C:\\agent";
 
 const DEFAULT_API_URL = "https://agent.api.stepsecurity.io/v1";
 const DEFAULT_TELEMETRY_URL = "https://prod.app-api.stepsecurity.io/v1";
+const DEFAULT_CONNECT_TIMEOUT_MS = 5000;
+const DEFAULT_MAX_ATTEMPTS = 4;
+const DEFAULT_RETRY_DELAY_MS = 1000;
+const DEFAULT_K8S_POLL_TIMEOUT_MS = 10000;
+const DEFAULT_K8S_POLL_INTERVAL_MS = 1000;
+const DEFAULT_K8S_SLEEP_FALLBACK_MS = 10000;
+
+type ParsedBoolean = {
+  value: boolean;
+  valid: boolean;
+};
 
 export const Config = {
   // Optional explicit hook-variant override, applied within the detected
@@ -16,6 +27,41 @@ export const Config = {
     // environments.
     baseUrl: process.env.STEP_API || DEFAULT_API_URL,
     telemetryUrl: process.env.STEP_TELEMETRY_URL || DEFAULT_TELEMETRY_URL,
+  },
+
+  hooks: {
+    retry: {
+      timeoutMs: readPositiveIntegerEnv(
+        "STEP_HOOK_CONNECT_TIMEOUT_MS",
+        DEFAULT_CONNECT_TIMEOUT_MS,
+      ),
+      maxAttempts: readPositiveIntegerEnv(
+        "STEP_HOOK_MAX_ATTEMPTS",
+        DEFAULT_MAX_ATTEMPTS,
+      ),
+      retryDelayMs: readNonNegativeIntegerEnv(
+        "STEP_HOOK_RETRY_DELAY_MS",
+        DEFAULT_RETRY_DELAY_MS,
+      ),
+      retryOnConnectionRefused: readBooleanEnv(
+        "STEP_HOOK_RETRY_ON_CONNREFUSED",
+        true,
+      ),
+    },
+    k8s: {
+      pollTimeoutMs: readNonNegativeIntegerEnv(
+        "STEP_HOOK_K8S_POLL_TIMEOUT_MS",
+        DEFAULT_K8S_POLL_TIMEOUT_MS,
+      ),
+      pollIntervalMs: readPositiveIntegerEnv(
+        "STEP_HOOK_K8S_POLL_INTERVAL_MS",
+        DEFAULT_K8S_POLL_INTERVAL_MS,
+      ),
+      sleepFallbackMs: readNonNegativeIntegerEnv(
+        "STEP_HOOK_K8S_SLEEP_FALLBACK_MS",
+        DEFAULT_K8S_SLEEP_FALLBACK_MS,
+      ),
+    },
   },
 
   linux: {
@@ -49,3 +95,55 @@ export const Config = {
     },
   },
 } as const;
+
+function readPositiveIntegerEnv(name: string, fallback: number): number {
+  return readIntegerEnv(name, fallback, (value) => value > 0);
+}
+
+function readNonNegativeIntegerEnv(name: string, fallback: number): number {
+  return readIntegerEnv(name, fallback, (value) => value >= 0);
+}
+
+function readIntegerEnv(
+  name: string,
+  fallback: number,
+  validate: (value: number) => boolean,
+): number {
+  const raw = process.env[name];
+  if (!raw) {
+    return fallback;
+  }
+
+  const parsed = Number.parseInt(raw, 10);
+  if (!Number.isFinite(parsed) || !validate(parsed)) {
+    return fallback;
+  }
+
+  return parsed;
+}
+
+function readBooleanEnv(name: string, fallback: boolean): boolean {
+  const parsed = parseBooleanEnv(process.env[name]);
+  return parsed.valid ? parsed.value : fallback;
+}
+
+function parseBooleanEnv(raw: string | undefined): ParsedBoolean {
+  if (!raw) {
+    return { value: false, valid: false };
+  }
+
+  switch (raw.trim().toLowerCase()) {
+    case "1":
+    case "true":
+    case "yes":
+    case "on":
+      return { value: true, valid: true };
+    case "0":
+    case "false":
+    case "no":
+    case "off":
+      return { value: false, valid: true };
+    default:
+      return { value: false, valid: false };
+  }
+}

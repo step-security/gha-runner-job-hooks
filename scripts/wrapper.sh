@@ -25,6 +25,13 @@ export STEP_AGENT_ROOT="/home/agent"
 # Optional overrides (defaults target StepSecurity prod):
 # export STEP_API="https://agent.api.stepsecurity.io/v1"
 # export STEP_TELEMETRY_URL="https://prod.app-api.stepsecurity.io/v1"
+# export STEP_HOOK_CONNECT_TIMEOUT_MS="2000"
+# export STEP_HOOK_MAX_ATTEMPTS="2"
+# export STEP_HOOK_RETRY_DELAY_MS="1000"
+# export STEP_HOOK_RETRY_ON_CONNREFUSED="false"
+# export STEP_HOOK_K8S_POLL_TIMEOUT_MS="10000"
+# export STEP_HOOK_K8S_POLL_INTERVAL_MS="1000"
+# export STEP_HOOK_K8S_SLEEP_FALLBACK_MS="3000"
 
 # --- Hook source (GitHub release) -------------------------------------------
 # TODO: replace with the real release download base URL.

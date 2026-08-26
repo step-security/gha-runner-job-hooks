@@ -1,4 +1,5 @@
 import { logInfo, requireEchoCommand, sleep } from "../../lib/common";
+import { Config } from "../../lib/config";
 import { toBase64Utf8 } from "../../lib/encoding";
 import { getGithubRunContext } from "../../lib/github-context";
 import { emitLinuxMarker } from "../../lib/markers";
@@ -23,8 +24,7 @@ export async function runK8sPreJobHook(): Promise<void> {
       runId: ctx.runId,
       correlationId,
     },
-    // curl --connect-timeout 5 --retry 3 --retry-delay 1
-    { timeoutMs: 5000, maxAttempts: 4, retryDelayMs: 1000 },
+    Config.hooks.retry,
   );
 
   handleBlockedRunPolicyEvaluation(runPolicyEvaluation);
@@ -68,19 +68,21 @@ async function waitForPolicy(
   policySignal: string,
   echoCommand: string,
 ): Promise<void> {
-  const maxPollTimeSeconds = 10;
-  const pollIntervalMs = 1000;
+  const maxPollTimeMs = Config.hooks.k8s.pollTimeoutMs;
+  const pollIntervalMs = Config.hooks.k8s.pollIntervalMs;
 
   logInfo("Egress policy is 'block', waiting for policy to be applied...");
 
   const startTime = Date.now();
 
-  // Poll for up to 10s, checking once per second for block-mode policy
-  // application before continuing the job.
+  // Poll for a bounded time, checking at a configurable interval for
+  // block-mode policy application before continuing the job.
   while (true) {
-    const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
+    const elapsedMs = Date.now() - startTime;
+    const elapsedSeconds = Math.floor(elapsedMs / 1000);
+    const maxPollTimeSeconds = Math.floor(maxPollTimeMs / 1000);
 
-    if (elapsedSeconds >= maxPollTimeSeconds) {
+    if (elapsedMs >= maxPollTimeMs) {
       logInfo(
         `Timeout waiting for policy status after ${elapsedSeconds}s, continuing...`,
       );
@@ -89,7 +91,7 @@ async function waitForPolicy(
 
     const status = await fetchWorkflowPolicyStatus(
       { owner, repo, correlationId },
-      { timeoutMs: 5000, maxAttempts: 4, retryDelayMs: 1000 }, // curl --connect-timeout 5 --retry 3 --retry-delay 1
+      Config.hooks.retry,
     );
 
     switch (status) {
@@ -105,8 +107,10 @@ async function waitForPolicy(
         break;
       case "SLEEP":
       default:
-        logInfo("Received SLEEP status, falling back to sleep 10");
-        await sleep(10_000);
+        logInfo(
+          `Received SLEEP status, falling back to sleep ${Config.hooks.k8s.sleepFallbackMs / 1000}`,
+        );
+        await sleep(Config.hooks.k8s.sleepFallbackMs);
         return;
     }
   }

@@ -12,6 +12,7 @@ export type RetryOptions = {
   timeoutMs: number;
   maxAttempts: number;
   retryDelayMs: number;
+  retryOnConnectionRefused?: boolean;
 };
 
 type HttpResponse = { statusCode: number; body: string };
@@ -76,7 +77,12 @@ export async function getWithRetry(
   url: string | URL,
   options: RetryOptions,
 ): Promise<HttpResponse> {
-  const { timeoutMs, maxAttempts, retryDelayMs } = options;
+  const {
+    timeoutMs,
+    maxAttempts,
+    retryDelayMs,
+    retryOnConnectionRefused = true,
+  } = options;
   let lastError: unknown = null;
 
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
@@ -84,9 +90,15 @@ export async function getWithRetry(
       return await httpGet(url, timeoutMs);
     } catch (error) {
       lastError = error;
-      if (attempt < maxAttempts - 1) {
+      if (
+        attempt < maxAttempts - 1 &&
+        shouldRetryRequestError(error, retryOnConnectionRefused)
+      ) {
         await sleep(retryDelayMs);
+        continue;
       }
+
+      break;
     }
   }
 
@@ -198,6 +210,26 @@ export function handleFatalError(error: unknown): never {
   }
 
   process.exit(0);
+}
+
+function shouldRetryRequestError(
+  error: unknown,
+  retryOnConnectionRefused: boolean,
+): boolean {
+  if (retryOnConnectionRefused) {
+    return true;
+  }
+
+  return getErrorCode(error) !== "ECONNREFUSED";
+}
+
+function getErrorCode(error: unknown): string {
+  if (!error || typeof error !== "object") {
+    return "";
+  }
+
+  const maybeCode = (error as { code?: unknown }).code;
+  return typeof maybeCode === "string" ? maybeCode : "";
 }
 
 export function terminateRunnerWorker(): void {
