@@ -1,4 +1,10 @@
-import { logInfo, requireEchoCommand, sleep } from "../../lib/common";
+import {
+  logInfo,
+  logNoticeAnnotation,
+  logWarningAnnotation,
+  requireEchoCommand,
+  sleep,
+} from "../../lib/common";
 import { Config } from "../../lib/config";
 import { toBase64Utf8 } from "../../lib/encoding";
 import { getGithubRunContext } from "../../lib/github-context";
@@ -50,6 +56,8 @@ export async function runK8sPreJobHook(): Promise<void> {
         correlationId,
         policySignal,
         echoCommand,
+        ctx.githubRepository,
+        ctx.runId,
       );
     }
   } else {
@@ -67,6 +75,8 @@ async function waitForPolicy(
   correlationId: string,
   policySignal: string,
   echoCommand: string,
+  githubRepository: string,
+  runId: string,
 ): Promise<void> {
   const maxPollTimeMs = Config.hooks.k8s.pollTimeoutMs;
   const pollIntervalMs = Config.hooks.k8s.pollIntervalMs;
@@ -86,6 +96,10 @@ async function waitForPolicy(
       logInfo(
         `Timeout waiting for policy status after ${elapsedSeconds}s, continuing...`,
       );
+      logWarningAnnotation(
+        "StepSecurity egress policy",
+        `Block-mode policy not confirmed applied after ${elapsedSeconds}s; early outbound calls may be unfiltered.`,
+      );
       return;
     }
 
@@ -96,7 +110,14 @@ async function waitForPolicy(
 
     switch (status) {
       case "APPLIED":
-        logInfo("Policy applied successfully, continuing execution");
+        logInfo(
+          "StepSecurity block-mode egress policy is active; continuing job execution",
+        );
+        // Only this branch has confirmed filtering is in effect.
+        logNoticeAnnotation(
+          "StepSecurity egress policy",
+          `StepSecurity egress block mode is active. Details: https://app.stepsecurity.io/github/${githubRepository}/actions/runs/${runId}`,
+        );
         return;
       case "NOT_APPLIED":
         logInfo(

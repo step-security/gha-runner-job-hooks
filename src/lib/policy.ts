@@ -1,5 +1,6 @@
 import {
   getWithRetry,
+  logErrorAnnotation,
   logInfo,
   logWarning,
   RetryOptions,
@@ -128,10 +129,17 @@ export function handleBlockedRunPolicyEvaluation(
     appendSummaryMarkdown(runPolicyEvaluation.summaryMarkdown);
   }
 
-  terminateRunnerWorker();
+  // Before terminateRunnerWorker(), which kills the worker reading this stdout.
+  logErrorAnnotation(
+    "StepSecurity workflow run policy",
+    "Job cancelled: the workflow run policy concluded block.",
+  );
+
   logWarning(
     "Workflow is being cancelled because workflow run policy concluded with block",
   );
+
+  terminateRunnerWorker();
   process.exit(1);
 }
 

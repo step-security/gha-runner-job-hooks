@@ -35,6 +35,23 @@ export function logError(message: string): void {
   console.error(`[StepSecurity] Error: ${message}`);
 }
 
+// ---------------------------------------------------------------------------
+// Annotations — surface in the run's Annotations panel. Callers pass single-line
+// literals, so no workflow-command escaping is needed.
+// ---------------------------------------------------------------------------
+
+export function logNoticeAnnotation(title: string, message: string): void {
+  console.log(`::notice title=${title}::${message}`);
+}
+
+export function logWarningAnnotation(title: string, message: string): void {
+  console.log(`::warning title=${title}::${message}`);
+}
+
+export function logErrorAnnotation(title: string, message: string): void {
+  console.log(`::error title=${title}::${message}`);
+}
+
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
