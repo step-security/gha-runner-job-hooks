@@ -14,10 +14,16 @@
 #   ACTIONS_RUNNER_HOOK_JOB_STARTED=/opt/step-security/pre.sh
 #   ACTIONS_RUNNER_HOOK_JOB_COMPLETED=/opt/step-security/post.sh
 #
-# It caches the hook bundles under /tmp and runs the matching file with
-# `sudo -E node`. Only the pre-job phase performs the download step. It always
-# exits 0 so a hook problem never fails the workflow job.
+# It caches the hook bundles under /tmp and runs the matching file with `sudo`.
+# Only the pre-job phase performs the download step. It always exits 0 so a hook
+# problem never fails the workflow job.
 # Requires curl, node, and sudo on PATH.
+#
+# On Ubuntu 26, `sudo` does not support `-E`. Preserve the runner environment
+# explicitly with:
+#
+#   vars="$(compgen -e | paste -sd, -)"
+#   sudo --preserve-env="$vars" env node "${PRE_JS}"
 
 # --- Hook configuration -----------------------------------------------------
 export STEP_HOOK_MODE="vm" # vm | k8s | custom-vm

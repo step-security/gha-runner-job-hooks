@@ -55,3 +55,13 @@ Point the GitHub Actions runner hook variables at the installed hook bundles:
 | `ACTIONS_RUNNER_HOOK_JOB_COMPLETED` | Path to the post-job wrapper script. |
 
 The runner must have `node` available on `PATH` as `node` when these hooks run.
+
+## Ubuntu 26 sudo environment preservation
+
+On Ubuntu 26, `sudo` does not support `-E`. If your wrapper needs to preserve
+the runner environment when invoking the hook, use:
+
+```bash
+vars="$(compgen -e | paste -sd, -)"
+sudo --preserve-env="$vars" env node "${PRE_JS}"
+```
