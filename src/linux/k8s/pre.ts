@@ -58,6 +58,7 @@ export async function runK8sPreJobHook(): Promise<void> {
         echoCommand,
         ctx.githubRepository,
         ctx.runId,
+        ctx.job,
       );
     }
   } else {
@@ -77,6 +78,7 @@ async function waitForPolicy(
   echoCommand: string,
   githubRepository: string,
   runId: string,
+  job: string,
 ): Promise<void> {
   const maxPollTimeMs = Config.hooks.k8s.pollTimeoutMs;
   const pollIntervalMs = Config.hooks.k8s.pollIntervalMs;
@@ -116,7 +118,7 @@ async function waitForPolicy(
         // Only this branch has confirmed filtering is in effect.
         logNoticeAnnotation(
           "StepSecurity egress policy",
-          `StepSecurity egress block mode is active. Details: https://app.stepsecurity.io/github/${githubRepository}/actions/runs/${runId}`,
+          `StepSecurity egress block mode is active for job '${job}'. Details: https://app.stepsecurity.io/github/${githubRepository}/actions/runs/${runId}`,
         );
         return;
       case "NOT_APPLIED":
