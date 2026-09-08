@@ -1,12 +1,27 @@
-import { getWithRetry, logInfo, RetryOptions } from "./common";
+import {
+  getWithRetry,
+  logErrorAnnotation,
+  logInfo,
+  logWarning,
+  RetryOptions,
+  terminateRunnerWorker,
+} from "./common";
 import { Config } from "./config";
+import { appendSummaryMarkdown } from "./summary";
 
 export type WorkflowPolicyCheckResult = {
   hasPolicy: boolean;
   shouldSleep: boolean;
+  runPolicyEvaluation: RunPolicyEvaluation | null;
 };
 
 export type WorkflowPolicyStatus = "APPLIED" | "NOT_APPLIED" | "SLEEP";
+export type RunPolicyConclusion = "block" | "proceed";
+
+export type RunPolicyEvaluation = {
+  conclusion: RunPolicyConclusion;
+  summaryMarkdown?: string;
+};
 
 export type WorkflowPolicyCheckParams = {
   owner: string;
@@ -23,28 +38,6 @@ export type PolicyCheckLogging = {
   windowsErrorStyle?: boolean;
 };
 
-function parseBooleanField(body: string, fieldName: string): boolean {
-  try {
-    const response = JSON.parse(body) as Record<string, unknown>;
-    return response[fieldName] === true;
-  } catch {
-    return false;
-  }
-}
-
-function parseStatusField(body: string): WorkflowPolicyStatus {
-  try {
-    const response = JSON.parse(body) as { status?: unknown };
-    if (response.status === "APPLIED" || response.status === "NOT_APPLIED") {
-      return response.status;
-    }
-  } catch {
-    // fall through to SLEEP
-  }
-
-  return "SLEEP";
-}
-
 // GET .../actions/policies/workflow-check — returns whether a policy is
 // configured for this workflow (and, for ARC, whether the runner should wait
 // for it to apply). Unauthenticated, matching the shell hooks.
@@ -59,6 +52,7 @@ export async function fetchWorkflowPolicyCheck(
   url.searchParams.append("workflow", params.workflow);
   url.searchParams.append("run_id", params.runId);
   url.searchParams.append("correlationId", params.correlationId);
+  url.searchParams.append("evaluate_run_policies", "true");
 
   logInfo(`Policy store request URL: ${url.toString()}`);
 
@@ -71,13 +65,14 @@ export async function fetchWorkflowPolicyCheck(
         logInfo(`ERROR: API call failed with status ${statusCode}`);
         logInfo(`Response: ${body}`);
       }
-      return { hasPolicy: false, shouldSleep: false };
+      return {
+        hasPolicy: false,
+        shouldSleep: false,
+        runPolicyEvaluation: null,
+      };
     }
 
-    return {
-      hasPolicy: parseBooleanField(body, "has_policy"),
-      shouldSleep: parseBooleanField(body, "should_sleep"),
-    };
+    return parseWorkflowPolicyCheckResponse(body);
   } catch (error) {
     const message =
       error instanceof Error && error.message ? error.message : "unknown";
@@ -87,7 +82,11 @@ export async function fetchWorkflowPolicyCheck(
       logInfo("ERROR: API call failed with status ");
       logInfo("Response: ");
     }
-    return { hasPolicy: false, shouldSleep: false };
+    return {
+      hasPolicy: false,
+      shouldSleep: false,
+      runPolicyEvaluation: null,
+    };
   }
 }
 
@@ -117,4 +116,89 @@ export async function fetchWorkflowPolicyStatus(
   } catch {
     return "SLEEP";
   }
+}
+
+export function handleBlockedRunPolicyEvaluation(
+  runPolicyEvaluation: RunPolicyEvaluation | null,
+): void {
+  if (runPolicyEvaluation?.conclusion !== "block") {
+    return;
+  }
+
+  if (runPolicyEvaluation.summaryMarkdown) {
+    appendSummaryMarkdown(runPolicyEvaluation.summaryMarkdown);
+  }
+
+  // Before terminateRunnerWorker(), which kills the worker reading this stdout.
+  logErrorAnnotation(
+    "StepSecurity workflow run policy",
+    "Job cancelled: the workflow run policy concluded block.",
+  );
+
+  logWarning(
+    "Workflow is being cancelled because workflow run policy concluded with block",
+  );
+
+  terminateRunnerWorker();
+  process.exit(1);
+}
+
+type WorkflowPolicyCheckResponse = {
+  has_policy?: unknown;
+  should_sleep?: unknown;
+  run_policy_evaluation?: unknown;
+};
+
+function parseWorkflowPolicyCheckResponse(
+  body: string,
+): WorkflowPolicyCheckResult {
+  try {
+    const response = JSON.parse(body) as WorkflowPolicyCheckResponse;
+    return {
+      hasPolicy: response.has_policy === true,
+      shouldSleep: response.should_sleep === true,
+      runPolicyEvaluation: parseRunPolicyEvaluation(
+        response.run_policy_evaluation,
+      ),
+    };
+  } catch {
+    return {
+      hasPolicy: false,
+      shouldSleep: false,
+      runPolicyEvaluation: null,
+    };
+  }
+}
+
+function parseStatusField(body: string): WorkflowPolicyStatus {
+  try {
+    const response = JSON.parse(body) as { status?: unknown };
+    if (response.status === "APPLIED" || response.status === "NOT_APPLIED") {
+      return response.status;
+    }
+  } catch {
+    // fall through to SLEEP
+  }
+
+  return "SLEEP";
+}
+
+function parseRunPolicyEvaluation(value: unknown): RunPolicyEvaluation | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  const response = value as Record<string, unknown>;
+  if (response.conclusion !== "block" && response.conclusion !== "proceed") {
+    return null;
+  }
+
+  return {
+    conclusion: response.conclusion,
+    summaryMarkdown:
+      typeof response.summary_markdown === "string" &&
+      response.summary_markdown.length > 0
+        ? response.summary_markdown
+        : undefined,
+  };
 }

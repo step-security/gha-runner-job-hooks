@@ -12,7 +12,10 @@ import {
   resetAgentPlaceholders,
 } from "../lib/agent-json";
 import { emitWindowsMarker } from "../lib/markers";
-import { fetchWorkflowPolicyCheck } from "../lib/policy";
+import {
+  fetchWorkflowPolicyCheck,
+  handleBlockedRunPolicyEvaluation,
+} from "../lib/policy";
 import { fetchAndAppendSummary, SummaryOutcome } from "../lib/summary";
 import { startAgentService, stopAgentService } from "./service";
 
@@ -24,7 +27,6 @@ export async function runGithubHostedPreHook(): Promise<void> {
   logInfo("PRE-JOB HOOK: Configuring agent for this job...");
 
   const correlationId = randomUUID();
-  logInfo(`Step Security Job Correlation ID: ${correlationId}`);
 
   // Fill the agent.json placeholders baked into the custom image, then start
   // the agent service on demand for this job.
@@ -51,7 +53,7 @@ export async function runGithubHostedPreHook(): Promise<void> {
   }
 
   logInfo("PRE-JOB HOOK: Checking for policy from Policy Store...");
-  const { hasPolicy } = await fetchWorkflowPolicyCheck(
+  const { hasPolicy, runPolicyEvaluation } = await fetchWorkflowPolicyCheck(
     {
       owner: ctx.owner,
       repo: ctx.repo,
@@ -63,6 +65,9 @@ export async function runGithubHostedPreHook(): Promise<void> {
     { timeoutMs: 5000, maxAttempts: 1, retryDelayMs: 1000 },
     { windowsErrorStyle: true },
   );
+
+  handleBlockedRunPolicyEvaluation(runPolicyEvaluation);
+  logInfo(`Step Security Job Correlation ID: ${correlationId}`);
 
   const encoded = toBase64Utf8(
     `${ctx.githubRepository}/${ctx.workflow}/${ctx.runId}|${correlationId}`,

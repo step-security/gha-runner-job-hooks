@@ -14,10 +14,16 @@
 #   ACTIONS_RUNNER_HOOK_JOB_STARTED=/opt/step-security/pre.sh
 #   ACTIONS_RUNNER_HOOK_JOB_COMPLETED=/opt/step-security/post.sh
 #
-# It caches the hook bundles under /tmp and runs the matching file with
-# `sudo -E node`. Only the pre-job phase performs the download step. It always
-# exits 0 so a hook problem never fails the workflow job.
+# It caches the hook bundles under /tmp and runs the matching file with `sudo`.
+# Only the pre-job phase performs the download step. It always exits 0 so a hook
+# problem never fails the workflow job.
 # Requires curl, node, and sudo on PATH.
+#
+# On Ubuntu 26, `sudo` does not support `-E`. Preserve the runner environment
+# explicitly with:
+#
+#   vars="$(compgen -e | paste -sd, -)"
+#   sudo --preserve-env="$vars" env node "${PRE_JS}"
 
 # --- Hook configuration -----------------------------------------------------
 export STEP_HOOK_MODE="vm" # vm | k8s | custom-vm
@@ -25,6 +31,13 @@ export STEP_AGENT_ROOT="/home/agent"
 # Optional overrides (defaults target StepSecurity prod):
 # export STEP_API="https://agent.api.stepsecurity.io/v1"
 # export STEP_TELEMETRY_URL="https://prod.app-api.stepsecurity.io/v1"
+# export STEP_HOOK_CONNECT_TIMEOUT_MS="2000"
+# export STEP_HOOK_MAX_ATTEMPTS="2"
+# export STEP_HOOK_RETRY_DELAY_MS="1000"
+# export STEP_HOOK_RETRY_ON_CONNREFUSED="false"
+# export STEP_HOOK_K8S_POLL_TIMEOUT_MS="10000"
+# export STEP_HOOK_K8S_POLL_INTERVAL_MS="1000"
+# export STEP_HOOK_K8S_SLEEP_FALLBACK_MS="3000"
 
 # --- Hook source (GitHub release) -------------------------------------------
 # TODO: replace with the real release download base URL.

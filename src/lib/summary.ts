@@ -1,6 +1,11 @@
 import * as fs from "fs";
 
-import { getWithRetry, logInfo, RetryOptions } from "./common";
+import {
+  getWithRetry,
+  logInfo,
+  logWarningAnnotation,
+  RetryOptions,
+} from "./common";
 import { Config } from "./config";
 import { getGithubRunContext } from "./github-context";
 
@@ -47,6 +52,7 @@ export async function fetchAndAppendSummary(
       if (ctx.stepSummaryPath) {
         fs.appendFileSync(ctx.stepSummaryPath, body, "utf8");
       }
+      annotateBlockedEgress(body, ctx.githubRepository, ctx.runId, ctx.job);
       return { status: "written", httpStatus: statusCode };
     }
 
@@ -59,6 +65,46 @@ export async function fetchAndAppendSummary(
     const message = error instanceof Error ? error.message : String(error);
     return { status: "error", httpStatus: 0, message };
   }
+}
+
+export function appendSummaryMarkdown(markdown: string): void {
+  if (!markdown) {
+    return;
+  }
+
+  const ctx = getGithubRunContext();
+  if (!ctx.stepSummaryPath) {
+    return;
+  }
+
+  fs.appendFileSync(ctx.stepSummaryPath, markdown, "utf8");
+}
+
+// Status cells read "❌ Blocked" / "✅ Allowed". Matching the cell, not the word,
+// keeps the "block mode" footer link and surrounding prose from triggering it.
+const BLOCKED_STATUS_CELL = /\|[^|]*\bblocked\b[^|]*\|/i;
+
+// The rendered markdown is the only signal: job-markdown-summary has no
+// structured "was anything blocked" field, so this tracks dashboard copy.
+function annotateBlockedEgress(
+  markdown: string,
+  githubRepository: string,
+  runId: string,
+  job: string,
+): void {
+  // Per line, so a cell match cannot straddle a row boundary.
+  const blocked = markdown
+    .split("\n")
+    .some((line) => BLOCKED_STATUS_CELL.test(line));
+
+  if (!blocked) {
+    return;
+  }
+
+  logWarningAnnotation(
+    "StepSecurity blocked egress",
+    `Outbound calls were blocked by the egress policy for job '${job}'. Details: https://app.stepsecurity.io/github/${githubRepository}/actions/runs/${runId}`,
+  );
 }
 
 // Creation (birth) time of the event file in epoch seconds — the equivalent of

@@ -7,7 +7,10 @@ import { toBase64Utf8 } from "../lib/encoding";
 import { removeFileIfExists } from "../lib/files";
 import { getGithubRunContext } from "../lib/github-context";
 import { emitWindowsMarker } from "../lib/markers";
-import { fetchWorkflowPolicyCheck } from "../lib/policy";
+import {
+  fetchWorkflowPolicyCheck,
+  handleBlockedRunPolicyEvaluation,
+} from "../lib/policy";
 
 const READY_TIMEOUT_SECONDS = 60;
 
@@ -17,11 +20,8 @@ export async function runSelfHostedPreHook(): Promise<void> {
   logInfo("PRE-JOB HOOK: Checking for policy from Policy Store...");
 
   const correlationId = randomUUID();
-  logInfo(
-    `Generated job correlationId for self-hosted agent: ${correlationId}`,
-  );
 
-  const { hasPolicy } = await fetchWorkflowPolicyCheck(
+  const { hasPolicy, runPolicyEvaluation } = await fetchWorkflowPolicyCheck(
     {
       owner: ctx.owner,
       repo: ctx.repo,
@@ -32,6 +32,11 @@ export async function runSelfHostedPreHook(): Promise<void> {
     // Invoke-RestMethod -TimeoutSec 5 (no retry)
     { timeoutMs: 5000, maxAttempts: 1, retryDelayMs: 1000 },
     { windowsErrorStyle: true },
+  );
+
+  handleBlockedRunPolicyEvaluation(runPolicyEvaluation);
+  logInfo(
+    `Generated job correlationId for self-hosted agent: ${correlationId}`,
   );
 
   const encoded = toBase64Utf8(
