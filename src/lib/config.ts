@@ -1,5 +1,6 @@
 const linuxRoot = process.env.STEP_AGENT_ROOT || "/home/agent";
 const windowsRoot = process.env.STEP_AGENT_ROOT_WINDOWS || "C:\\agent";
+const macosRoot = process.env.STEP_AGENT_ROOT_MACOS || "/opt/step-security";
 
 const DEFAULT_API_URL = "https://agent.api.stepsecurity.io/v1";
 const DEFAULT_TELEMETRY_URL = "https://prod.app-api.stepsecurity.io/v1";
@@ -74,6 +75,20 @@ export const Config = {
       agentDone: `${linuxRoot}/done.json`,
       agentLog: `${linuxRoot}/agent.log`,
       postEvent: `${linuxRoot}/post_event.json`,
+    },
+  },
+
+  macos: {
+    root: macosRoot,
+
+    files: {
+      agentJson: `${macosRoot}/agent.json`,
+      agentDone: `${macosRoot}/done.json`,
+      policyDataDir: `${macosRoot}/policy-data`,
+      policyConfig: `${macosRoot}/policy-data/policy-config.json`,
+      policyConfigCreated: `${macosRoot}/policy-data/policy-config-created.mark`,
+      policyApplied: `${macosRoot}/policy-data/policy-applied.mark`,
+      postJob: `${macosRoot}/policy-data/post_job.mark`,
     },
   },
 

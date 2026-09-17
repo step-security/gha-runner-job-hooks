@@ -2,6 +2,7 @@
 
 import { handleFatalError, logWarning } from "./lib/common";
 import { runLinuxPreJobHook } from "./linux/pre";
+import { runMacOSPreJobHook } from "./macos/pre";
 import { runWindowsPreJobHook } from "./windows/pre";
 import { HookVersion } from "./version";
 
@@ -16,6 +17,11 @@ async function main(): Promise<void> {
 
   if (process.platform === "win32") {
     await runWindowsPreJobHook();
+    return;
+  }
+
+  if (process.platform === "darwin") {
+    await runMacOSPreJobHook();
     return;
   }
 
