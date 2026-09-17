@@ -4,7 +4,7 @@ import { randomUUID } from "crypto";
 import { logInfo, runCommand, waitForFile } from "../lib/common";
 import { Config } from "../lib/config";
 import { toBase64Utf8 } from "../lib/encoding";
-import { printFileRaw, removeFileIfExists } from "../lib/files";
+import { printFileRaw, removeFileIfExists, removeStaleFiles } from "../lib/files";
 import { getGithubRunContext } from "../lib/github-context";
 import {
   fillAgentPlaceholders,
@@ -53,6 +53,12 @@ export async function runGithubHostedPreHook(): Promise<void> {
   }
 
   logInfo("PRE-JOB HOOK: Checking for policy from Policy Store...");
+
+  // A prior job's ready-file may not have been cleaned up if that job's
+  // enforcement timed out (see below) — sweep it now since its correlation
+  // ID will never be looked up again.
+  removeStaleFiles(Config.windows.root, "prejob_policy_ready_", ".json");
+
   const { hasPolicy, runPolicyEvaluation } = await fetchWorkflowPolicyCheck(
     {
       owner: ctx.owner,

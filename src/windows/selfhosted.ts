@@ -1,10 +1,9 @@
-import * as fs from "fs";
 import { randomUUID } from "crypto";
 
 import { logInfo, waitForFile } from "../lib/common";
 import { Config } from "../lib/config";
 import { toBase64Utf8 } from "../lib/encoding";
-import { removeFileIfExists } from "../lib/files";
+import { removeFileIfExists, removeStaleFiles } from "../lib/files";
 import { getGithubRunContext } from "../lib/github-context";
 import { emitWindowsMarker } from "../lib/markers";
 import {
@@ -18,6 +17,11 @@ export async function runSelfHostedPreHook(): Promise<void> {
   const ctx = getGithubRunContext();
 
   logInfo("PRE-JOB HOOK: Checking for policy from Policy Store...");
+
+  // A prior job's ready-file may not have been cleaned up if that job's
+  // enforcement timed out (see below) — sweep it now since its correlation
+  // ID will never be looked up again.
+  removeStaleFiles(Config.windows.root, "prejob_policy_ready_", ".json");
 
   const correlationId = randomUUID();
 
@@ -69,7 +73,7 @@ export async function runSelfHostedPreHook(): Promise<void> {
 export async function runSelfHostedPostHook(): Promise<void> {
   logInfo("POST-JOB HOOK: Signalling agent to clean up...");
 
-  removeStaleCleanupFiles();
+  removeStaleFiles(Config.windows.root, "postjob_cleanup_done_", ".json");
 
   const nonce = randomUUID();
   const completionFile = Config.windows.files.cleanupDone(nonce);
@@ -84,22 +88,5 @@ export async function runSelfHostedPostHook(): Promise<void> {
     logInfo(
       `POST-JOB HOOK: Cleanup timed out after ${READY_TIMEOUT_SECONDS}s; continuing`,
     );
-  }
-
-}
-
-// Remove any leftover `postjob_cleanup_done_*.json` files from a prior job.
-function removeStaleCleanupFiles(): void {
-  let entries: string[];
-  try {
-    entries = fs.readdirSync(Config.windows.root);
-  } catch {
-    return;
-  }
-
-  for (const entry of entries) {
-    if (entry.startsWith("postjob_cleanup_done_") && entry.endsWith(".json")) {
-      removeFileIfExists(`${Config.windows.root}\\${entry}`);
-    }
   }
 }

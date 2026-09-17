@@ -83,3 +83,27 @@ export function removeFileIfExists(filePath: string): boolean {
 
   return false;
 }
+
+// Remove any files directly under `root` whose name starts with `prefix` and
+// ends with `suffix`. Used to sweep up per-job marker files (named with a
+// random correlation ID / nonce) that a prior job's hook timed out before
+// deleting — since the ID changes every job, nothing else will ever find and
+// clean up an orphaned marker.
+export function removeStaleFiles(
+  root: string,
+  prefix: string,
+  suffix: string,
+): void {
+  let entries: string[];
+  try {
+    entries = fs.readdirSync(root);
+  } catch {
+    return;
+  }
+
+  for (const entry of entries) {
+    if (entry.startsWith(prefix) && entry.endsWith(suffix)) {
+      removeFileIfExists(`${root}\\${entry}`);
+    }
+  }
+}
