@@ -13,6 +13,7 @@ export type RetryOptions = {
   maxAttempts: number;
   retryDelayMs: number;
   retryOnConnectionRefused?: boolean;
+  headers?: Record<string, string>;
 };
 
 type HttpResponse = { statusCode: number; body: string };
@@ -64,21 +65,26 @@ export function sleep(ms: number): Promise<void> {
 export function httpGet(
   url: string | URL,
   timeoutMs: number,
+  headers: Record<string, string> = {},
 ): Promise<HttpResponse> {
   return new Promise((resolve, reject) => {
     const parsedUrl = typeof url === "string" ? new URL(url) : url;
     const client = parsedUrl.protocol === "http:" ? http : https;
 
-    const request = client.get(parsedUrl, { timeout: timeoutMs }, (response) => {
-      let data = "";
-      response.setEncoding("utf8");
-      response.on("data", (chunk: string) => {
-        data += chunk;
-      });
-      response.on("end", () => {
-        resolve({ statusCode: response.statusCode || 0, body: data });
-      });
-    });
+    const request = client.get(
+      parsedUrl,
+      { headers, timeout: timeoutMs },
+      (response) => {
+        let data = "";
+        response.setEncoding("utf8");
+        response.on("data", (chunk: string) => {
+          data += chunk;
+        });
+        response.on("end", () => {
+          resolve({ statusCode: response.statusCode || 0, body: data });
+        });
+      },
+    );
 
     request.on("timeout", () => {
       request.destroy(new Error("Request timeout"));
@@ -99,12 +105,13 @@ export async function getWithRetry(
     maxAttempts,
     retryDelayMs,
     retryOnConnectionRefused = true,
+    headers = {},
   } = options;
   let lastError: unknown = null;
 
   for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
     try {
-      return await httpGet(url, timeoutMs);
+      return await httpGet(url, timeoutMs, headers);
     } catch (error) {
       lastError = error;
       if (
@@ -250,6 +257,9 @@ function getErrorCode(error: unknown): string {
 }
 
 export function terminateRunnerWorker(): void {
+  
+  sleepSync(7000); // wait for 7 seconds
+
   if (process.platform === "win32") {
     runCommand(
       "taskkill.exe",
@@ -259,5 +269,26 @@ export function terminateRunnerWorker(): void {
     return;
   }
 
+  if (process.platform === "darwin") {
+    killWorkerDetached();
+    return;
+  }
+
   runCommand("pkill", ["-f", "Runner.Worker"], { silent: true });
+}
+
+function killWorkerDetached(): void {
+  const child = childProcess.spawn(
+    "/bin/sh",
+    ["-c", "sleep 1; killall -9 Runner.Worker"],
+    {
+      detached: true,
+      stdio: "ignore",
+    },
+  );
+  child.unref();
+}
+
+function sleepSync(ms: number): void {
+  Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 }

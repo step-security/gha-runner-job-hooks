@@ -2,6 +2,7 @@
 
 import { handleFatalError, logWarning } from "./lib/common";
 import { runLinuxPostJobHook } from "./linux/post";
+import { runMacOSPostJobHook } from "./macos/post";
 import { runWindowsPostJobHook } from "./windows/post";
 import { HookVersion } from "./version";
 
@@ -16,6 +17,11 @@ async function main(): Promise<void> {
 
   if (process.platform === "win32") {
     await runWindowsPostJobHook();
+    return;
+  }
+
+  if (process.platform === "darwin") {
+    await runMacOSPostJobHook();
     return;
   }
 

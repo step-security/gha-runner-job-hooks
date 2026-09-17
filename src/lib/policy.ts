@@ -1,5 +1,6 @@
 import {
   getWithRetry,
+  logError,
   logErrorAnnotation,
   logInfo,
   logWarning,
@@ -21,7 +22,26 @@ export type RunPolicyConclusion = "block" | "proceed";
 export type RunPolicyEvaluation = {
   conclusion: RunPolicyConclusion;
   summaryMarkdown?: string;
+  summaryLog?: string;
 };
+
+export type PolicyStoreConfig = {
+  policyName: string;
+  allowedEndpoints: string;
+  deniedEndpoints: string;
+  egressPolicy: string;
+};
+
+export type PolicyStoreFetchResult =
+  | {
+      status: "found";
+      config: PolicyStoreConfig;
+      runPolicyEvaluation: RunPolicyEvaluation | null;
+    }
+  | {
+      status: "not_found" | "error";
+      runPolicyEvaluation: RunPolicyEvaluation | null;
+    };
 
 export type WorkflowPolicyCheckParams = {
   owner: string;
@@ -118,6 +138,62 @@ export async function fetchWorkflowPolicyStatus(
   }
 }
 
+export async function fetchPolicyStoreConfig(
+  params: {
+    owner: string;
+    repo: string;
+    workflow: string;
+    runId: string;
+    correlationId: string;
+    apiKey: string;
+  },
+): Promise<PolicyStoreFetchResult> {
+  if (!params.apiKey) {
+    return { status: "error", runPolicyEvaluation: null };
+  }
+
+  const url = new URL(
+    `${Config.api.baseUrl}/github/${params.owner}/${params.repo}/actions/policies/workflow-policy`,
+  );
+  url.searchParams.append("workflow", params.workflow);
+  url.searchParams.append("run_id", params.runId);
+  url.searchParams.append("correlationId", params.correlationId);
+  url.searchParams.append("evaluate_run_policies", "true");
+
+  logInfo(`Policy fetch URL: ${url.toString()}`);
+
+  try {
+    const { statusCode, body } = await getWithRetry(url, {
+      ...Config.hooks.retry,
+      headers: { Authorization: `vm-api-key ${params.apiKey}` },
+    });
+    const runPolicyEvaluation = parseRunPolicyEvaluationFromBody(body);
+
+    if (String(statusCode) === "404") {
+      return { status: "not_found", runPolicyEvaluation };
+    }
+
+    if (String(statusCode) !== "200") {
+      logError(`Policy fetch failed with status ${statusCode}`);
+      logInfo(`Response: ${body}`);
+      return { status: "error", runPolicyEvaluation };
+    }
+
+    const config = parsePolicyStoreConfig(body);
+    if (!config) {
+      return { status: "not_found", runPolicyEvaluation };
+    }
+
+    return { status: "found", config, runPolicyEvaluation };
+  } catch (error) {
+    const message =
+      error instanceof Error && error.message ? error.message : "unknown";
+    logError(`Policy fetch failed with status ${message}`);
+    logInfo("Response: ");
+    return { status: "error", runPolicyEvaluation: null };
+  }
+}
+
 export function handleBlockedRunPolicyEvaluation(
   runPolicyEvaluation: RunPolicyEvaluation | null,
 ): void {
@@ -127,6 +203,10 @@ export function handleBlockedRunPolicyEvaluation(
 
   if (runPolicyEvaluation.summaryMarkdown) {
     appendSummaryMarkdown(runPolicyEvaluation.summaryMarkdown);
+  }
+
+  if (runPolicyEvaluation.summaryLog) {
+    console.log(runPolicyEvaluation.summaryLog);
   }
 
   // Before terminateRunnerWorker(), which kills the worker reading this stdout.
@@ -148,6 +228,52 @@ type WorkflowPolicyCheckResponse = {
   should_sleep?: unknown;
   run_policy_evaluation?: unknown;
 };
+
+type PolicyStoreResponse = {
+  policy_name?: unknown;
+  allowed_endpoints?: unknown;
+  denied_endpoints?: unknown;
+  egress_policy?: unknown;
+  run_policy_evaluation?: unknown;
+};
+
+function parsePolicyStoreConfig(body: string): PolicyStoreConfig | null {
+  const response = JSON.parse(body) as PolicyStoreResponse;
+  const policyName =
+    typeof response.policy_name === "string" ? response.policy_name.trim() : "";
+  if (!policyName) {
+    return null;
+  }
+
+  return {
+    policyName,
+    allowedEndpoints: endpointArrayToString(response.allowed_endpoints),
+    deniedEndpoints: endpointArrayToString(response.denied_endpoints),
+    egressPolicy:
+      typeof response.egress_policy === "string" &&
+      response.egress_policy.trim().length > 0
+        ? response.egress_policy.trim()
+        : "audit",
+  };
+}
+
+function endpointArrayToString(value: unknown): string {
+  return Array.isArray(value)
+    ? value.filter((item): item is string => typeof item === "string").join(" ")
+    : "";
+}
+
+function parseRunPolicyEvaluationFromBody(
+  body: string,
+): RunPolicyEvaluation | null {
+  try {
+    return parseRunPolicyEvaluation(
+      (JSON.parse(body) as PolicyStoreResponse).run_policy_evaluation,
+    );
+  } catch {
+    return null;
+  }
+}
 
 function parseWorkflowPolicyCheckResponse(
   body: string,
@@ -199,6 +325,10 @@ function parseRunPolicyEvaluation(value: unknown): RunPolicyEvaluation | null {
       typeof response.summary_markdown === "string" &&
       response.summary_markdown.length > 0
         ? response.summary_markdown
+        : undefined,
+    summaryLog:
+      typeof response.summary_log === "string" && response.summary_log.length > 0
+        ? response.summary_log
         : undefined,
   };
 }

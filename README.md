@@ -27,6 +27,7 @@ apply to every job on that runner.
 | `STEP_API`                | `https://agent.api.stepsecurity.io/v1` | StepSecurity API base URL. `STEPSECURITY_API` is accepted as an alias.  |
 | `STEP_TELEMETRY_URL`      | `https://prod.app-api.stepsecurity.io/v1` | StepSecurity telemetry endpoint written into `agent.json` (Linux persistent) when not already set. |
 | `STEP_AGENT_ROOT`         | `/home/agent`                          | Linux agent directory (agent.json, agent.status, done.json, agent.log). |
+| `STEP_AGENT_ROOT_MACOS`   | `/opt/step-security`                   | macOS agent directory (agent.json, done.json, policy-data files). |
 | `STEP_AGENT_ROOT_WINDOWS` | `C:\agent`                             | Windows agent directory.                                                |
 | `STEP_HOOK_MODE`          | `vm`                                   | Force the hook variant: `vm`, `k8s` (Linux only), or `custom-vm`.       |
 | `STEP_HOOK_CONNECT_TIMEOUT_MS` | `5000`                           | HTTP request timeout in milliseconds for policy and summary calls.      |
@@ -40,8 +41,8 @@ apply to every job on that runner.
 Notes:
 
 - `STEP_API` and `STEP_TELEMETRY_URL` are the main per-environment overrides.
-- `STEP_AGENT_ROOT` is Linux-only and `STEP_AGENT_ROOT_WINDOWS` is
-  Windows-only. Set only the one that matches the runner OS.
+- `STEP_AGENT_ROOT`, `STEP_AGENT_ROOT_MACOS`, and `STEP_AGENT_ROOT_WINDOWS`
+  are OS-specific. Set only the one that matches the runner OS.
 - `STEP_HOOK_MODE` is the explicit override for runner topology selection.
 - `STEP_HOOK_MAX_ATTEMPTS=2` gives you one retry after the initial request.
 
