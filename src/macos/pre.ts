@@ -43,7 +43,7 @@ export async function runMacOSPreJobHook(): Promise<void> {
     correlationId,
     apiKey,
   });
-  logInfo(`Policy fetch result: ${JSON.stringify(result)}`);
+  // logInfo(`Policy fetch result: ${JSON.stringify(result)}`);
 
   handleBlockedRunPolicyEvaluation(result.runPolicyEvaluation);
   clearPolicyApplicationFiles();
