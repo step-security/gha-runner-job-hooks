@@ -271,6 +271,7 @@ export function terminateRunnerWorker(): void {
 
   if (process.platform === "darwin") {
     killWorkerDetached();
+    sleepSync(7000); // wait for 7 seconds
     return;
   }
 
