@@ -75,6 +75,7 @@ export const Config = {
       agentDone: `${linuxRoot}/done.json`,
       agentLog: `${linuxRoot}/agent.log`,
       postEvent: `${linuxRoot}/post_event.json`,
+      lockfile: `${linuxRoot}/agent.lock`,
     },
   },
 

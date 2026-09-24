@@ -55,4 +55,9 @@ export function removeLinuxJobStateFiles(): void {
   if (removeFileIfExists(Config.linux.files.agentLog)) {
     logInfo(`Deleted state file: ${Config.linux.files.agentLog}`);
   }
+
+  if (removeFileIfExists(Config.linux.files.lockfile)) {
+    logInfo(`Deleted state file: ${Config.linux.files.lockfile}`);
+  }
+  
 }
