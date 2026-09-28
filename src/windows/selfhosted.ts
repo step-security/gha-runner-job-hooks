@@ -3,7 +3,12 @@ import { randomUUID } from "crypto";
 import { logInfo, waitForFile } from "../lib/common";
 import { Config } from "../lib/config";
 import { toBase64Utf8 } from "../lib/encoding";
-import { removeFileIfExists, removeStaleFiles } from "../lib/files";
+import {
+  AGENT_LOG_GROUP,
+  printFileGroup,
+  removeFileIfExists,
+  removeStaleFiles,
+} from "../lib/files";
 import { getGithubRunContext } from "../lib/github-context";
 import { emitWindowsMarker } from "../lib/markers";
 import {
@@ -89,4 +94,6 @@ export async function runSelfHostedPostHook(): Promise<void> {
       `POST-JOB HOOK: Cleanup timed out after ${READY_TIMEOUT_SECONDS}s; continuing`,
     );
   }
+
+  printFileGroup(Config.windows.files.agentLog, AGENT_LOG_GROUP);
 }
