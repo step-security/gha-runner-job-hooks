@@ -1,6 +1,7 @@
 import { logWarning } from "./common";
 import { Config } from "./config";
 import { readJsonFile, updateJsonFile } from "./files";
+import { isGHES } from "./github-context";
 
 function readString(
   source: Record<string, unknown> | null,
@@ -22,6 +23,28 @@ export function detectIsGithubHosted(agentJsonPath: string): boolean {
 
 export function readCorrelationId(agentJsonPath: string): string {
   return readString(readJsonFile(agentJsonPath), "correlation_id");
+}
+
+// GHES orgs are keyed in the policy store as "<customer>::<server_name>::<owner>",
+// matching harden-runner's getPolicyOwner and the agent's ghesOwner.
+export function resolvePolicyOwner(
+  agentJsonPath: string,
+  owner: string,
+): string {
+  if (!isGHES()) {
+    return owner;
+  }
+
+  const agent = readJsonFile(agentJsonPath);
+  const customer = readString(agent, "customer");
+  const serverName = readString(agent, "server_name");
+  if (!customer || !serverName) {
+    logWarning(
+      `customer and server_name are required in ${agentJsonPath} for GitHub Enterprise Server (GHES)`,
+    );
+    return owner;
+  }
+  return `${customer}::${serverName}::${owner}`;
 }
 
 // ---------------------------------------------------------------------------

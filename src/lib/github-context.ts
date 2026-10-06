@@ -31,3 +31,9 @@ export function getGithubRunContext(): GithubRunContext {
     eventPath: process.env.GITHUB_EVENT_PATH || "",
   };
 }
+
+export function isGHES(
+  serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com",
+): boolean {
+  return serverUrl !== "https://github.com";
+}

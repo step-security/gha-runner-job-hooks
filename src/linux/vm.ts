@@ -13,6 +13,7 @@ import { toBase64Utf8 } from "../lib/encoding";
 import { getGithubRunContext } from "../lib/github-context";
 import {
   readCorrelationId,
+  resolvePolicyOwner,
   updateLinuxAgentJsonForJob,
 } from "../lib/agent-json";
 import { emitLinuxMarker } from "../lib/markers";
@@ -98,7 +99,7 @@ export async function runEphemeralPreHook(): Promise<void> {
 
   const { hasPolicy, runPolicyEvaluation } = await fetchWorkflowPolicyCheck(
     {
-      owner: ctx.owner,
+      owner: resolvePolicyOwner(Config.linux.files.agentJson, ctx.owner),
       repo: ctx.repo,
       workflow: ctx.workflow,
       runId: ctx.runId,
