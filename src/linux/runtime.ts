@@ -53,3 +53,9 @@ export function detectLinuxRuntimeMode(): LinuxRuntimeMode {
 
   return isRunningInKubernetes() ? "k8s" : "vm";
 }
+
+// AWS CodeBuild-hosted GitHub runners, matching harden-runner's
+// detectThirdPartyRunnerProvider. These always run agent bravo.
+export function isCodeBuild(): boolean {
+  return process.env.CODEBUILD_RUNNER_TYPE === "GITHUB";
+}

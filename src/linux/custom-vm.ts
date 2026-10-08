@@ -4,7 +4,6 @@ import { randomUUID } from "crypto";
 
 import {
   logInfo,
-  logWarning,
   requireEchoCommand,
   sleep,
   waitForFile,
@@ -20,7 +19,7 @@ import {
   handleBlockedRunPolicyEvaluation,
 } from "../lib/policy";
 import { fetchAndAppendSummary, SummaryOutcome } from "../lib/summary";
-import { startAgentService } from "./service";
+import { startAgentService, writePostEvent } from "./service";
 
 // ---------------------------------------------------------------------------
 // Linux GitHub-hosted custom-VM hooks. The agent is baked into a custom image
@@ -132,15 +131,6 @@ export async function runCustomVmPostHook(): Promise<void> {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function writePostEvent(): void {
-  try {
-    fs.writeFileSync(Config.linux.files.postEvent, '{"event":"post"}\n', "utf8");
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    logWarning(`Writing ${Config.linux.files.postEvent} failed: ${message}`);
-  }
-}
 
 function logSummaryOutcome(outcome: SummaryOutcome): void {
   if (outcome.status === "written") {

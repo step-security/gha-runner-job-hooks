@@ -14,23 +14,24 @@
 #   ACTIONS_RUNNER_HOOK_JOB_STARTED=/opt/step-security/pre.sh
 #   ACTIONS_RUNNER_HOOK_JOB_COMPLETED=/opt/step-security/post.sh
 #
-# It caches the hook bundles under /tmp and runs the matching file with `sudo`.
+# It caches the hook bundles under /tmp and runs the matching file with `sudo`
+# (or directly when already root, e.g. CodeBuild, which has no sudo binary).
 # Only the pre-job phase performs the download step. It always exits 0 so a hook
 # problem never fails the workflow job.
 # Requires curl, node, and sudo on PATH.
-#
-# On Ubuntu 26, `sudo` does not support `-E`. Preserve the runner environment
-# explicitly with:
-#
-#   vars="$(compgen -e | paste -sd, -)"
-#   sudo --preserve-env="$vars" env node "${PRE_JS}"
 
 # --- Hook configuration -----------------------------------------------------
 export STEP_HOOK_MODE="vm" # vm | k8s | custom-vm
 export STEP_AGENT_ROOT="/home/agent"
+# Agent identity, required on ephemeral GHES / CodeBuild runners where the hooks
+# install the agent (server name is GHES-only).
+export STEP_CUSTOMER=""
+export STEP_SERVER_NAME=""
+export STEP_API_KEY=""
 # Optional overrides (defaults target StepSecurity prod):
 # export STEP_API="https://agent.api.stepsecurity.io/v1"
 # export STEP_TELEMETRY_URL="https://prod.app-api.stepsecurity.io/v1"
+# export STEP_WEB_URL="https://app.stepsecurity.io"
 # export STEP_HOOK_CONNECT_TIMEOUT_MS="2000"
 # export STEP_HOOK_MAX_ATTEMPTS="2"
 # export STEP_HOOK_RETRY_DELAY_MS="1000"
@@ -46,6 +47,13 @@ HOOKS_DIR="/tmp/gha-hooks"
 PRE_JS="${HOOKS_DIR}/pre.js"
 POST_JS="${HOOKS_DIR}/post.js"
 
+# Preserve the runner environment by listing it explicitly: on Ubuntu 26
+# `sudo` does not support `-E`.
+SUDO=(sudo --preserve-env="$(compgen -e | paste -sd, -)" env)
+if [[ "$(id -u)" == "0" ]]; then
+  SUDO=()
+fi
+
 if [[ "$(basename "$0")" == pre.sh ]]; then
   mkdir -p "${HOOKS_DIR}"
 
@@ -57,9 +65,9 @@ if [[ "$(basename "$0")" == pre.sh ]]; then
     curl -fsSL "${HOOK_RELEASE_BASE}/post.js" -o "${POST_JS}"
   fi
 
-  sudo -E node "${PRE_JS}"
+  "${SUDO[@]}" node "${PRE_JS}"
 else
-  sudo -E node "${POST_JS}"
+  "${SUDO[@]}" node "${POST_JS}"
 fi
 
 exit 0

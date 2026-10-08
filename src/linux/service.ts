@@ -1,4 +1,11 @@
-import { logCommandFailure, logInfo, runCommand } from "../lib/common";
+import * as fs from "fs";
+
+import {
+  logCommandFailure,
+  logInfo,
+  logWarning,
+  runCommand,
+} from "../lib/common";
 import { Config } from "../lib/config";
 import { removeFileIfExists } from "../lib/files";
 
@@ -40,6 +47,16 @@ export function agentServiceIsActive(): boolean {
     { silent: true },
   );
   return result.status === 0;
+}
+
+// Signal job end to the agent; it finalizes and writes done.json.
+export function writePostEvent(): void {
+  try {
+    fs.writeFileSync(Config.linux.files.postEvent, '{"event":"post"}\n', "utf8");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logWarning(`Writing ${Config.linux.files.postEvent} failed: ${message}`);
+  }
 }
 
 // Clear per-job state files (agent.status, done.json, agent.log).

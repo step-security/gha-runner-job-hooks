@@ -8,6 +8,7 @@ export type GithubRunContext = {
   runnerName: string;
   stepSummaryPath: string;
   eventPath: string;
+  workspace: string;
 };
 
 // Turn "octo/repo/.github/workflows/build.yml@refs/heads/main" into "build.yml",
@@ -29,5 +30,12 @@ export function getGithubRunContext(): GithubRunContext {
     runnerName: process.env.RUNNER_NAME || "",
     stepSummaryPath: process.env.GITHUB_STEP_SUMMARY || "",
     eventPath: process.env.GITHUB_EVENT_PATH || "",
+    workspace: process.env.GITHUB_WORKSPACE || "",
   };
+}
+
+export function isGHES(
+  serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com",
+): boolean {
+  return serverUrl !== "https://github.com";
 }

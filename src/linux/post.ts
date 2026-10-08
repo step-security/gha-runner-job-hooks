@@ -1,9 +1,11 @@
 import { logInfo } from "../lib/common";
 import { Config } from "../lib/config";
 import { detectIsPersistent } from "../lib/agent-json";
+import { isGHES } from "../lib/github-context";
 import { runCustomVmPostHook } from "./custom-vm";
 import { runK8sPostJobHook } from "./k8s/post";
-import { detectLinuxRuntimeMode } from "./runtime";
+import { runManagedPostHook } from "./managed";
+import { detectLinuxRuntimeMode, isCodeBuild } from "./runtime";
 import { runEphemeralPostHook, runPersistentPostHook } from "./vm";
 
 export async function runLinuxPostJobHook(): Promise<void> {
@@ -25,6 +27,13 @@ export async function runLinuxPostJobHook(): Promise<void> {
   if (detectIsPersistent(Config.linux.files.agentJson)) {
     logInfo("Running persistent post-hook");
     await runPersistentPostHook();
+    return;
+  }
+
+  // On ephemeral GHES / CodeBuild VMs the hooks install and run the agent.
+  if (isGHES() || isCodeBuild()) {
+    logInfo("Running managed-agent post-hook");
+    await runManagedPostHook();
     return;
   }
 

@@ -1,9 +1,11 @@
 import { logInfo } from "../lib/common";
 import { Config } from "../lib/config";
 import { detectIsPersistent } from "../lib/agent-json";
+import { isGHES } from "../lib/github-context";
 import { runCustomVmPreHook } from "./custom-vm";
 import { runK8sPreJobHook } from "./k8s/pre";
-import { detectLinuxRuntimeMode } from "./runtime";
+import { runManagedPreHook } from "./managed";
+import { detectLinuxRuntimeMode, isCodeBuild } from "./runtime";
 import { runEphemeralPreHook, runPersistentPreHook } from "./vm";
 
 export async function runLinuxPreJobHook(): Promise<void> {
@@ -25,6 +27,13 @@ export async function runLinuxPreJobHook(): Promise<void> {
   if (detectIsPersistent(Config.linux.files.agentJson)) {
     logInfo("Running persistent pre-hook");
     await runPersistentPreHook();
+    return;
+  }
+
+  // On ephemeral GHES / CodeBuild VMs the hooks install and run the agent.
+  if (isGHES() || isCodeBuild()) {
+    logInfo("Running managed-agent pre-hook");
+    await runManagedPreHook();
     return;
   }
 
