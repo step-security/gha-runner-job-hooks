@@ -96,6 +96,62 @@ export function httpGet(
   });
 }
 
+// Stream a URL to a file, following redirects (GitHub release assets redirect
+// to their storage host). `timeoutMs` is a socket inactivity timeout.
+export function httpDownload(
+  url: string | URL,
+  filePath: string,
+  timeoutMs: number,
+  redirectsLeft = 5,
+): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const parsedUrl = typeof url === "string" ? new URL(url) : url;
+    const client = parsedUrl.protocol === "http:" ? http : https;
+
+    const request = client.get(
+      parsedUrl,
+      { timeout: timeoutMs },
+      (response) => {
+        const statusCode = response.statusCode || 0;
+        const location = response.headers.location;
+        const isRedirect = statusCode >= 300 && statusCode < 400;
+        if (isRedirect && location && redirectsLeft > 0) {
+          response.resume();
+          resolve(
+            httpDownload(
+              new URL(location, parsedUrl),
+              filePath,
+              timeoutMs,
+              redirectsLeft - 1,
+            ),
+          );
+          return;
+        }
+
+        if (statusCode !== 200) {
+          response.resume();
+          reject(new Error(`HTTP ${statusCode}`));
+          return;
+        }
+
+        const file = fs.createWriteStream(filePath);
+        response.on("error", reject);
+        file.on("error", reject);
+        file.on("finish", () => resolve());
+        response.pipe(file);
+      },
+    );
+
+    request.on("timeout", () => {
+      request.destroy(new Error("Request timeout"));
+    });
+
+    request.on("error", (error: Error) => {
+      reject(error);
+    });
+  });
+}
+
 export async function getWithRetry(
   url: string | URL,
   options: RetryOptions,

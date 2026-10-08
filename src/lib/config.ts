@@ -4,6 +4,7 @@ const macosRoot = process.env.STEP_AGENT_ROOT_MACOS || "/opt/step-security";
 
 const DEFAULT_API_URL = "https://agent.api.stepsecurity.io/v1";
 const DEFAULT_TELEMETRY_URL = "https://prod.app-api.stepsecurity.io/v1";
+const DEFAULT_WEB_URL = "https://app.stepsecurity.io";
 const DEFAULT_CONNECT_TIMEOUT_MS = 5000;
 const DEFAULT_MAX_ATTEMPTS = 4;
 const DEFAULT_RETRY_DELAY_MS = 1000;
@@ -28,6 +29,15 @@ export const Config = {
     // environments.
     baseUrl: process.env.STEP_API || DEFAULT_API_URL,
     telemetryUrl: process.env.STEP_TELEMETRY_URL || DEFAULT_TELEMETRY_URL,
+    webUrl: process.env.STEP_WEB_URL || DEFAULT_WEB_URL,
+  },
+
+  // Identity for the agent the hooks install on ephemeral GHES / CodeBuild
+  // runners.
+  agent: {
+    customer: process.env.STEP_CUSTOMER || "",
+    serverName: process.env.STEP_SERVER_NAME || "",
+    apiKey: process.env.STEP_API_KEY || "",
   },
 
   hooks: {
@@ -74,6 +84,8 @@ export const Config = {
       agentStatus: `${linuxRoot}/agent.status`,
       agentDone: `${linuxRoot}/done.json`,
       agentLog: `${linuxRoot}/agent.log`,
+      agentStdout: `${linuxRoot}/agent.stdout`,
+      agentBinary: `${linuxRoot}/agent`,
       postEvent: `${linuxRoot}/post_event.json`,
       lockfile: `${linuxRoot}/agent.lock`,
     },

@@ -217,7 +217,7 @@ export async function runEphemeralPostHook(): Promise<void> {
 // Helpers
 // ---------------------------------------------------------------------------
 
-function logLinuxSummaryOutcome(outcome: SummaryOutcome): void {
+export function logLinuxSummaryOutcome(outcome: SummaryOutcome): void {
   if (outcome.status === "written") {
     logInfo("Summary added to job output");
     return;
