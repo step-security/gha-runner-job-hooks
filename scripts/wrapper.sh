@@ -39,6 +39,8 @@ export STEP_API_KEY=""
 # export STEP_HOOK_K8S_POLL_TIMEOUT_MS="10000"
 # export STEP_HOOK_K8S_POLL_INTERVAL_MS="1000"
 # export STEP_HOOK_K8S_SLEEP_FALLBACK_MS="3000"
+# Set when the agent tar is baked into the VM image under STEP_AGENT_ROOT:
+# export STEP_AGENT_BAKED="true"
 
 # --- Hook source (GitHub release) -------------------------------------------
 # TODO: replace with the real release download base URL.

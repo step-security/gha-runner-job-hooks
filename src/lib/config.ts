@@ -38,6 +38,9 @@ export const Config = {
     customer: process.env.STEP_CUSTOMER || "",
     serverName: process.env.STEP_SERVER_NAME || "",
     apiKey: process.env.STEP_API_KEY || "",
+    // The agent tar is baked into the VM image under the agent root, so the
+    // hooks install it from there instead of downloading the latest release.
+    baked: readBooleanEnv("STEP_AGENT_BAKED", false),
   },
 
   hooks: {
