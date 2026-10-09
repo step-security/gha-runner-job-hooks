@@ -29,35 +29,22 @@ type ReleaseAsset = {
 const AGENT_SERVICE_PATH = "/etc/systemd/system/agent.service";
 const DOWNLOAD_TIMEOUT_MS = 30000;
 
-// Resolve the latest agent release from the StepSecurity API, then download,
-// verify and place the agent binary under the agent root. Returns false (after
-// logging) when any step fails.
+// Take the agent tar baked into the agent root, or download and verify the
+// latest release from the StepSecurity API, then place the agent binary under
+// the agent root. Returns false (after logging) when any step fails.
 export async function installAgent(kind: AgentKind): Promise<boolean> {
   // TESTING: remove with installTestBravo below.
   // if (kind === "bravo") {
   //   return installTestBravo();
   // }
 
-  const asset = await fetchLatestReleaseAsset(kind);
-  if (!asset) {
-    return false;
-  }
-
   const downloadDir = fs.mkdtempSync(path.join(os.tmpdir(), "step-agent-"));
-  const tarball = path.join(downloadDir, "agent.tar.gz");
-
-  if (
-    !(await downloadFile(asset.primary_download_url, tarball)) &&
-    !(await downloadFile(asset.fallback_download_url, tarball))
-  ) {
+  const tarball = Config.agent.baked
+    ? findBakedTarball(kind)
+    : await downloadAgent(kind, downloadDir);
+  if (!tarball) {
     return false;
   }
-
-  if (`sha256:${sha256File(tarball)}` !== asset.checksum) {
-    logWarning("Agent checksum verification failed");
-    return false;
-  }
-  logInfo("Checksum verification passed");
 
   const extract = runCommand("tar", ["-xzf", tarball, "-C", downloadDir]);
   if (extract.status !== 0) {
@@ -95,15 +82,54 @@ export function startAgent(kind: AgentKind): void {
 // Helpers
 // ---------------------------------------------------------------------------
 
+// Download the latest release tar into downloadDir and verify its checksum.
+// Returns the tar path, or null (after logging) when any step fails.
+async function downloadAgent(
+  kind: AgentKind,
+  downloadDir: string,
+): Promise<string | null> {
+  const asset = await fetchLatestReleaseAsset(kind);
+  if (!asset) {
+    return null;
+  }
+
+  const tarball = path.join(downloadDir, "agent.tar.gz");
+  if (
+    !(await downloadFile(asset.primary_download_url, tarball)) &&
+    !(await downloadFile(asset.fallback_download_url, tarball))
+  ) {
+    return null;
+  }
+
+  if (`sha256:${sha256File(tarball)}` !== asset.checksum) {
+    logWarning("Agent checksum verification failed");
+    return null;
+  }
+  logInfo("Checksum verification passed");
+  return tarball;
+}
+
+// Find the release tar baked into the agent root under its original name,
+// e.g. /home/agent/harden-runner_1.9.3_linux_amd64.tar.gz.
+function findBakedTarball(kind: AgentKind): string | null {
+  const fileName = fs.existsSync(Config.linux.root)
+    ? fs.readdirSync(Config.linux.root).find((f) => isAgentTarball(f, kind))
+    : undefined;
+  if (!fileName) {
+    logWarning(`No baked agent tar found in ${Config.linux.root}`);
+    return null;
+  }
+
+  logInfo(`Using baked agent tar ${fileName}`);
+  return path.join(Config.linux.root, fileName);
+}
+
 // GET .../harden-runner-agent/github/linux/single/releases/latest and pick the
-// asset for this agent kind and architecture, e.g.
-// "harden-runner-bravo_1.9.3_linux_amd64.tar.gz".
+// asset for this agent kind and architecture.
 async function fetchLatestReleaseAsset(
   kind: AgentKind,
 ): Promise<ReleaseAsset | null> {
   const url = `${Config.api.baseUrl}/harden-runner-agent/github/linux/single/releases/latest`;
-  const name = kind === "bravo" ? "harden-runner-bravo" : "harden-runner";
-  const variant = process.arch === "x64" ? "amd64" : "arm64";
 
   logInfo(`Fetching latest agent release from ${url}`);
   try {
@@ -114,13 +140,11 @@ async function fetchLatestReleaseAsset(
     }
 
     const assets = (JSON.parse(body) as { assets?: ReleaseAsset[] }).assets;
-    const asset = assets?.find(
-      (candidate) =>
-        candidate.asset_name.startsWith(`${name}_`) &&
-        candidate.asset_name.endsWith(`_linux_${variant}.tar.gz`),
+    const asset = assets?.find((candidate) =>
+      isAgentTarball(candidate.asset_name, kind),
     );
     if (!asset) {
-      logWarning(`No ${name} ${variant} asset in the latest agent release`);
+      logWarning(`No ${kind} agent asset in the latest agent release`);
       return null;
     }
 
@@ -130,6 +154,17 @@ async function fetchLatestReleaseAsset(
     logWarning(`Fetching latest agent release failed: ${message}`);
     return null;
   }
+}
+
+// Release tar name for this agent kind and architecture, e.g.
+// "harden-runner-bravo_1.9.3_linux_amd64.tar.gz".
+function isAgentTarball(fileName: string, kind: AgentKind): boolean {
+  const name = kind === "bravo" ? "harden-runner-bravo" : "harden-runner";
+  const variant = process.arch === "x64" ? "amd64" : "arm64";
+  return (
+    fileName.startsWith(`${name}_`) &&
+    fileName.endsWith(`_linux_${variant}.tar.gz`)
+  );
 }
 
 async function downloadFile(url: string, filePath: string): Promise<boolean> {
