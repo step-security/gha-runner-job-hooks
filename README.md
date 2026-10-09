@@ -44,6 +44,12 @@ metadata from `STEP_API`, selects the Linux amd64 or arm64 asset, downloads it
 It extracts the archive with `tar` and writes the binary and job-specific
 `agent.json` under `STEP_AGENT_ROOT`.
 
+When `STEP_AGENT_BAKED` is true, the agent tar is expected to be baked into the
+VM image under `STEP_AGENT_ROOT` with its release name (for example
+`harden-runner_1.9.3_linux_amd64.tar.gz`). The pre-hook installs from that tar
+instead of fetching and downloading the latest release, and does not verify its
+checksum; verify it when baking the image.
+
 - GHES runners outside CodeBuild use the default agent and the release's
   `agent.service`, installed under `/etc/systemd/system`. This requires root
   privileges, systemd, and `sudo` for the service commands.
@@ -74,6 +80,7 @@ apply to every job on that runner.
 | `STEP_SERVER_NAME`       | Empty                                  | Server identity required for managed-agent installation on GHES. |
 | `STEP_API_KEY`           | Empty                                  | API key required for managed-agent installation and authenticated policy fetches. |
 | `STEP_AGENT_ROOT`         | `/home/agent`                          | Linux agent directory, including configuration, state, logs, and the managed-agent binary. |
+| `STEP_AGENT_BAKED`        | `false`                                | Install the managed agent from the release tar baked into `STEP_AGENT_ROOT` instead of downloading it. |
 | `STEP_AGENT_ROOT_MACOS`   | `/opt/step-security`                   | macOS agent directory (agent.json, done.json, policy-data files). |
 | `STEP_AGENT_ROOT_WINDOWS` | `C:\agent`                             | Windows agent directory.                                                |
 | `STEP_HOOK_MODE`          | `vm`                                   | Force the hook variant: `vm`, `k8s` (Linux only), or `custom-vm`.       |
