@@ -140,6 +140,19 @@ Point the GitHub Actions runner hook variables at the installed wrapper scripts:
 
 The runner must have `node` available on `PATH` as `node` when these hooks run.
 
+## GitLab provider
+
+The GitLab provider (`--provider gitlab`) supports the following parameters:
+
+| Option | Environment variable | Description |
+| --- | --- | --- |
+| `--customer` | `STEP_GITLAB_CUSTOMER` | Customer identity. Required. |
+| `--api-key` | `STEP_GITLAB_API_KEY` | API key. Required. |
+| `--server-name` | `STEP_GITLAB_SERVER_NAME` | Server identity. Required. |
+| `--version` | `STEP_GITLAB_AGENT_VERSION_WINDOWS` | Agent version to install. Required. |
+| `--api` | `STEP_API` | StepSecurity API base URL. |
+| `--telemetry-url` | `STEP_TELEMETRY_URL` | Telemetry endpoint. |
+
 ## Linux wrapper setup
 
 Use [scripts/wrapper.sh](scripts/wrapper.sh) as the starting point. Configure its
