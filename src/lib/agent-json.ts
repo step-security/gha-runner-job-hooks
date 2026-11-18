@@ -25,8 +25,8 @@ export function readCorrelationId(agentJsonPath: string): string {
 }
 
 // ---------------------------------------------------------------------------
-// Linux persistent agent — rewrite agent.json in place with this job's context,
-// keeping the field set and ordering of the shell hook's `update_agent_json`.
+// Linux persistent agent — rewrite agent.json in place with this job's context.
+// Other fields in the file are kept.
 // ---------------------------------------------------------------------------
 
 export function updateLinuxAgentJsonForJob(
@@ -41,11 +41,10 @@ export function updateLinuxAgentJsonForJob(
 ): void {
   try {
     updateJsonFile(agentJsonPath, (existing) => ({
-      customer: readString(existing, "customer"),
-      runner_work_directory: readString(existing, "runner_work_directory"),
-      working_directory: readString(existing, "working_directory"),
-      api_key: readString(existing, "api_key"),
-      is_persistent: existing.is_persistent === true,
+      // keep everything in the file (customer settings like
+      // enable_file_tracing included); set the API URLs if missing and
+      // this job's context
+      ...existing,
       api_url: readString(existing, "api_url") || Config.api.baseUrl,
       telemetry_url:
         readString(existing, "telemetry_url") || Config.api.telemetryUrl,
