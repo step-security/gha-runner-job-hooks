@@ -41,14 +41,10 @@ export function updateLinuxAgentJsonForJob(
 ): void {
   try {
     updateJsonFile(agentJsonPath, (existing) => ({
-      // keep settings the customer added (enable_file_tracing,
-      // disable_file_monitoring, ...); only the job fields below change
+      // keep everything in the file (customer settings like
+      // enable_file_tracing included); set the API URLs if missing and
+      // this job's context
       ...existing,
-      customer: readString(existing, "customer"),
-      runner_work_directory: readString(existing, "runner_work_directory"),
-      working_directory: readString(existing, "working_directory"),
-      api_key: readString(existing, "api_key"),
-      is_persistent: existing.is_persistent === true,
       api_url: readString(existing, "api_url") || Config.api.baseUrl,
       telemetry_url:
         readString(existing, "telemetry_url") || Config.api.telemetryUrl,
