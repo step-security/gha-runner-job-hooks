@@ -16,6 +16,7 @@ import {
 } from "../lib/files";
 import {
   getGithubRunContext,
+  getScopedOwner,
   GithubRunContext,
   isGHES,
 } from "../lib/github-context";
@@ -159,14 +160,10 @@ function hasRequiredInputs(): boolean {
   return true;
 }
 
-// GHES orgs are keyed as "<customer>::<server_name>::<owner>", matching
-// harden-runner's getPolicyOwner and the agent's ghesOwner.
+// hasRequiredInputs has already checked customer and server name, so this does
+// not throw on the managed-agent path.
 function scopedOwner(owner: string): string {
-  if (!isGHES()) {
-    return owner;
-  }
-
-  return `${Config.agent.customer}::${Config.agent.serverName}::${owner}`;
+  return getScopedOwner(owner, Config.agent.customer, Config.agent.serverName);
 }
 
 // Matches harden-runner's printInfo.

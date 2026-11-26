@@ -14,6 +14,7 @@ import {
   fetchWorkflowPolicyStatus,
   handleBlockedRunPolicyEvaluation,
 } from "../../lib/policy";
+import { buildPrejobPolicyPayload, resolveK8sScopedOwner } from "./scope";
 
 export async function runK8sPreJobHook(): Promise<void> {
   const ctx = getGithubRunContext();
@@ -21,10 +22,16 @@ export async function runK8sPreJobHook(): Promise<void> {
 
   logInfo("PRE-JOB HOOK: Checking for policy from Policy Store...");
 
+  const scopedOwner = resolveK8sScopedOwner(ctx.owner);
+  if (scopedOwner === null) {
+    logInfo("PRE-JOB HOOK: Skipped, Policy Store owner could not be resolved");
+    return;
+  }
+
   const { hasPolicy, shouldSleep, runPolicyEvaluation } =
     await fetchWorkflowPolicyCheck(
     {
-      owner: ctx.owner,
+      owner: scopedOwner,
       repo: ctx.repo,
       workflow: ctx.workflow,
       runId: ctx.runId,
@@ -42,7 +49,8 @@ export async function runK8sPreJobHook(): Promise<void> {
     logInfo("Policy found, applying policy...");
 
     const policySignal = buildPolicySignal(
-      ctx.githubRepository,
+      scopedOwner,
+      ctx.repo,
       ctx.workflow,
       ctx.runId,
       ctx.job,
@@ -51,12 +59,11 @@ export async function runK8sPreJobHook(): Promise<void> {
 
     if (shouldSleep) {
       await waitForPolicy(
-        ctx.owner,
+        scopedOwner,
         ctx.repo,
         correlationId,
         policySignal,
         echoCommand,
-        ctx.githubRepository,
         ctx.runId,
         ctx.job,
       );
@@ -76,7 +83,6 @@ async function waitForPolicy(
   correlationId: string,
   policySignal: string,
   echoCommand: string,
-  githubRepository: string,
   runId: string,
   job: string,
 ): Promise<void> {
@@ -118,7 +124,7 @@ async function waitForPolicy(
         // Only this branch has confirmed filtering is in effect.
         logNoticeAnnotation(
           "StepSecurity egress policy",
-          `StepSecurity egress block mode is active for job '${job}'. Details: https://app.stepsecurity.io/github/${githubRepository}/actions/runs/${runId}`,
+          `StepSecurity egress block mode is active for job '${job}'. Details: ${Config.api.webUrl}/github/${owner}/${repo}/actions/runs/${runId}`,
         );
         return;
       case "NOT_APPLIED":
@@ -140,13 +146,14 @@ async function waitForPolicy(
 }
 
 function buildPolicySignal(
-  githubRepository: string,
+  scopedOwner: string,
+  repo: string,
   workflow: string,
   runId: string,
   job: string,
 ): string {
   const encoded = toBase64Utf8(
-    `${githubRepository}/${workflow}/${runId}/${job}`,
+    buildPrejobPolicyPayload({ scopedOwner, repo, workflow, runId, job }),
   );
   return `step_policy_prejob_${encoded}`;
 }
