@@ -65,6 +65,27 @@ insights URL using `STEP_WEB_URL`. The post-hook signals completion through
 then waits up to ten seconds for `done.json` and prints agent logs. The managed
 post-hook fetches a job summary on GitHub.com; it skips that fetch on GHES.
 
+### Kubernetes (ARC) runners on GHES and data residency
+
+On GHES and data residency (`*.ghe.com`) the StepSecurity API identifies an org
+as `<customer>::<server_name>::<owner>`. Set `STEP_CUSTOMER` and
+`STEP_SERVER_NAME` in the hook wrapper scripts or on the runner container:
+
+```bash
+#!/bin/bash
+export STEP_HOOK_MODE="k8s"
+export STEP_CUSTOMER="<customer>"
+export STEP_SERVER_NAME="<server_name>"
+/home/runner/externals/node24/bin/node /job-hooks/pre.js
+```
+
+The Kubernetes hooks then use the scoped owner for the Policy Store check, the
+policy signal read by the Harden-Runner DaemonSet, the policy status poll, the
+job summary, and the dashboard links in annotations. If either variable is
+missing on GHES or data residency, the hooks log a warning and an error
+annotation, skip the Policy Store check and the job summary, and let the job
+continue. GitHub.com behaviour is unchanged.
+
 ## Configuration
 
 All configuration is environment-driven so a single published bundle works
@@ -76,9 +97,9 @@ apply to every job on that runner.
 | ------------------------- | -------------------------------------- | ----------------------------------------------------------------------- |
 | `STEP_API`                | `https://agent.api.stepsecurity.io/v1` | StepSecurity API base URL, including managed-agent release metadata. |
 | `STEP_TELEMETRY_URL`      | `https://prod.app-api.stepsecurity.io/v1` | Telemetry endpoint written into managed-agent `agent.json`; also fills missing values for Linux persistent agents. |
-| `STEP_WEB_URL`           | `https://app.stepsecurity.io`           | Base URL for managed-agent security insights links. |
-| `STEP_CUSTOMER`          | Empty                                  | Customer identity required for managed-agent installation. |
-| `STEP_SERVER_NAME`       | Empty                                  | Server identity required for managed-agent installation on GHES. |
+| `STEP_WEB_URL`           | `https://app.stepsecurity.io`           | Base URL for security insights links in logs and annotations. |
+| `STEP_CUSTOMER`          | Empty                                  | Customer identity required for managed-agent installation, and for Kubernetes runners on GHES and data residency. |
+| `STEP_SERVER_NAME`       | Empty                                  | Server identity required on GHES and data residency, for managed-agent installation and Kubernetes runners. |
 | `STEP_API_KEY`           | Empty                                  | API key required for managed-agent installation and authenticated policy fetches. |
 | `STEP_AGENT_ROOT`         | `/home/agent`                          | Linux agent directory, including configuration, state, logs, and the managed-agent binary. |
 | `STEP_AGENT_BAKED`        | `false`                                | Install the managed agent from the release tar baked into `STEP_AGENT_ROOT` instead of downloading it. |

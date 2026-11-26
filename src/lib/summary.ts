@@ -22,13 +22,20 @@ export async function fetchAndAppendSummary(
     correlationId: string;
     environment: string;
     includeTimeRange: boolean;
+    // Owner to request the summary under when it differs from the GitHub
+    // owner (the scoped GHES / data residency owner). Defaults to the GitHub
+    // owner.
+    owner?: string;
   },
   retry: RetryOptions,
 ): Promise<SummaryOutcome> {
   const ctx = getGithubRunContext();
+  const repository = params.owner
+    ? `${params.owner}/${ctx.repo}`
+    : ctx.githubRepository;
 
   const summaryUrl = new URL(
-    `${Config.api.baseUrl}/github/${ctx.githubRepository}/actions/runs/${ctx.runId}/correlation/${params.correlationId}/job-markdown-summary`,
+    `${Config.api.baseUrl}/github/${repository}/actions/runs/${ctx.runId}/correlation/${params.correlationId}/job-markdown-summary`,
   );
   summaryUrl.searchParams.append("environment", params.environment);
 
@@ -52,7 +59,7 @@ export async function fetchAndAppendSummary(
       if (ctx.stepSummaryPath) {
         fs.appendFileSync(ctx.stepSummaryPath, body, "utf8");
       }
-      annotateBlockedEgress(body, ctx.githubRepository, ctx.runId, ctx.job);
+      annotateBlockedEgress(body, repository, ctx.runId, ctx.job);
       return { status: "written", httpStatus: statusCode };
     }
 
@@ -88,7 +95,7 @@ const BLOCKED_STATUS_CELL = /\|[^|]*\bblocked\b[^|]*\|/i;
 // structured "was anything blocked" field, so this tracks dashboard copy.
 function annotateBlockedEgress(
   markdown: string,
-  githubRepository: string,
+  repository: string,
   runId: string,
   job: string,
 ): void {
@@ -103,7 +110,7 @@ function annotateBlockedEgress(
 
   logWarningAnnotation(
     "StepSecurity blocked egress",
-    `Outbound calls were blocked by the egress policy for job '${job}'. Details: https://app.stepsecurity.io/github/${githubRepository}/actions/runs/${runId}`,
+    `Outbound calls were blocked by the egress policy for job '${job}'. Details: ${Config.api.webUrl}/github/${repository}/actions/runs/${runId}`,
   );
 }
 

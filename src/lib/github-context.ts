@@ -34,6 +34,30 @@ export function getGithubRunContext(): GithubRunContext {
   };
 }
 
+// GHES and data residency orgs are keyed as "<customer>::<server_name>::<owner>",
+// matching harden-runner's getPolicyOwner and the agent's ghesOwner. On
+// GitHub.com the GitHub owner is returned unchanged. Throws when customer or
+// server name is missing on GHES: the bare owner would resolve to another
+// tenant's namespace.
+export function getScopedOwner(
+  owner: string,
+  customer: string,
+  serverName: string,
+): string {
+  if (!isGHES()) {
+    return owner;
+  }
+
+  if (!customer.trim()) {
+    throw new Error("STEP_CUSTOMER is required for GitHub Enterprise Server");
+  }
+  if (!serverName.trim()) {
+    throw new Error("STEP_SERVER_NAME is required for GitHub Enterprise Server");
+  }
+
+  return `${customer.trim()}::${serverName.trim()}::${owner}`;
+}
+
 export function isGHES(
   serverUrl = process.env.GITHUB_SERVER_URL || "https://github.com",
 ): boolean {
